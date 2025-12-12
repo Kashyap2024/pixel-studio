@@ -47,7 +47,6 @@
             color: var(--on-surface);
             font-family: 'Google Sans', sans-serif;
             margin: 0;
-            /* CRITICAL FIX FOR MOBILE: Use dynamic viewport height */
             height: 100vh; 
             height: 100dvh; 
             display: flex;
@@ -134,7 +133,7 @@
             transition: width 0.2s;
         }
         
-        .sidebar-spacer { height: 36px; background: var(--surface); border-bottom: 1px solid #333; flex-shrink: 0; }
+        .sidebar-spacer { height: 48px; background: var(--surface); border-bottom: 1px solid #333; flex-shrink: 0; }
 
         #track-controls-container { flex: 1; overflow-y: auto; overflow-x: hidden; }
 
@@ -221,13 +220,12 @@
         }
 
         #ruler {
-            height: 36px;
+            height: 48px; /* Increased Height */
             background: var(--surface-variant);
             border-bottom: 1px solid #333;
             position: sticky; top: 0; z-index: 15; cursor: crosshair;
         }
         
-        /* UPDATED: Vertical Ruler Text */
         .ruler-mark { 
             position: absolute; 
             top: 0; 
@@ -242,10 +240,9 @@
             /* Vertical Text Transformation */
             writing-mode: vertical-rl;
             text-orientation: mixed;
-            /* Rotate to make it readable from bottom-up or just use transform */
             transform: rotate(180deg);
             transform-origin: center;
-            height: 36px;
+            height: 48px; 
             display: flex;
             align-items: center;
         }
@@ -285,25 +282,26 @@
             content: ''; position: absolute; top: 0; bottom: 0; left: -15px; width: 30px; background: transparent;
         }
 
-        /* Transport Footer - MOBILE FIXES APPLIED */
+        /* Transport Footer */
         #transport {
             height: var(--transport-height);
             background: var(--surface-variant);
             border-top: 1px solid #000;
             display: flex; align-items: center; justify-content: center; gap: 24px;
             z-index: 30; flex-shrink: 0;
-            
-            /* Fix for iPhone Safe Area */
             padding-bottom: env(safe-area-inset-bottom);
-            box-sizing: content-box; /* Ensure padding doesn't shrink height */
+            box-sizing: content-box; 
         }
         
         #time-container {
-            display: flex; align-items: baseline; gap: 8px;
+            display: flex; 
+            flex-direction: column; /* Vertical Stack */
+            align-items: flex-end;  /* Right Align */
+            gap: 2px;
             font-family: 'Roboto Mono', monospace; color: var(--on-surface);
         }
         #time-display { font-size: 24px; min-width: 140px; text-align: right; }
-        #total-time-display { font-size: 14px; color: var(--outline); }
+        #total-time-display { font-size: 14px; color: var(--outline); margin-left: 0; }
 
         .transport-btn {
             width: 48px; height: 48px; border-radius: 50%; border: none; background: #444; color: #eee;
@@ -382,8 +380,9 @@
         #hamburger-menu.open { transform: translateX(0); }
         .drawer-header { font-size: 20px; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; }
         .drawer-section { border-bottom: 1px solid #444; padding-bottom: 16px; margin-bottom: 8px; }
-        .drawer-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: #333; margin-bottom: 8px; cursor: pointer; }
+        .drawer-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: #333; margin-bottom: 8px; cursor: pointer; transition: background-color 0.2s; }
         .drawer-item:active { background: #444; }
+        .drawer-item.active { background: var(--primary-container); color: var(--on-primary-container); border: 1px solid var(--primary); }
 
         /* Mobile Sub-Header / Toolbar */
         #mobile-toolbar {
@@ -439,18 +438,14 @@
             
             /* Show Mobile Toolbar */
             #mobile-toolbar { display: flex; }
-
-            #time-container { flex-direction: column; align-items: flex-end; }
-
-            #ruler, .ruler-mark { height: 48px; }
             
             /* Keep Add Audio but simplfied */
             #btn-add-audio span { display: none; }
-            #btn-add-audio { width: 45px; padding: 0; justify-content: center; font-size: 20px; }
+            #btn-add-audio { width: 40px; padding: 0; justify-content: center; font-size: 20px; }
 
             /* Sidebar (Track List) */
             #sidebar { width: 70px; border-right: 1px solid #333; }
-            .sidebar-spacer { height: 40px; background: var(--surface); }
+            .sidebar-spacer { height: 48px; background: var(--surface); }
             
             /* Track Header (Button Look) */
             .track-header { 
@@ -477,11 +472,10 @@
             #transport { 
                 height: 80px; 
                 padding: 0 10px; 
-                /* Padding fix for mobile within media query */
                 padding-bottom: calc(10px + env(safe-area-inset-bottom));
             }
-            #time-display { font-size: 18px; min-width: 100px; }
-            #total-time-display { display: inline !important; font-size: 12px; margin-left: 8px; color: var(--outline); }
+            #time-display { font-size: 18px; min-width: 100px; text-align: right;}
+            #total-time-display { display: inline !important; font-size: 12px; margin-left: 0; color: var(--outline); }
             
             /* Modals */
             .modal { width: 95%; max-width: 95%; padding: 20px; bottom: 0; border-radius: 24px 24px 0 0; position: absolute; border-bottom: none; }
@@ -511,6 +505,9 @@
 
     <!-- Tools -->
     <div class="drawer-section">
+        <div class="drawer-item" id="btn-snap-drawer" onclick="app.toggleSnap(); app.toggleHamburger()">🧲 Snap to Grid</div>
+        <div class="drawer-item" onclick="app.splitSelectedTrack(); app.toggleHamburger()">✂ Split Clip</div>
+        <div class="drawer-item" onclick="app.deleteSelected(); app.toggleHamburger()">🗑 Delete Selected</div>
         <div class="drawer-item" onclick="app.undo(); app.toggleHamburger()">↩ Undo</div>
         <div class="drawer-item" onclick="app.redo(); app.toggleHamburger()">↪ Redo</div>
     </div>
@@ -911,6 +908,7 @@ class DAW {
     renderTrackHeader(track) {
         const div = document.createElement('div');
         div.className = `track-header ${this.selectedTrackId === track.id ? 'selected' : ''}`;
+        div.id = 'header-' + track.id;
         // Click handler handles both Desktop selection and Mobile popup opening
         div.onclick = () => this.openTrackOptions(track.id);
         
@@ -940,8 +938,21 @@ class DAW {
         const lbl = document.createElement('div'); lbl.className = 'clip-label'; lbl.innerText = track.name; clip.appendChild(lbl);
         const cvs = document.createElement('canvas'); const w = Math.ceil(track.duration * this.zoom); cvs.width = w; cvs.height = 96;
         this.drawWaveform(cvs, track); clip.appendChild(cvs);
-        const startDrag = (e) => { this.selectTrack(track.id); this.handleDragStart(e, track, clip); };
-        clip.addEventListener('mousedown', startDrag); clip.addEventListener('touchstart', startDrag, {passive: false});
+        
+        // Manual StartDrag Logic to prevent Re-Render destroying the DOM node
+        const startDrag = (e) => { 
+            this.selectedTrackId = track.id;
+            // Manual Visual Update
+            document.querySelectorAll('.track-header.selected, .clip.selected').forEach(el => el.classList.remove('selected'));
+            clip.classList.add('selected');
+            const hdr = document.getElementById('header-' + track.id);
+            if(hdr) hdr.classList.add('selected');
+            
+            this.handleDragStart(e, track, clip); 
+        };
+        clip.addEventListener('mousedown', startDrag); 
+        clip.addEventListener('touchstart', startDrag, {passive: false});
+        
         lane.appendChild(clip); this.trackLanesEl.appendChild(lane);
     }
 
@@ -959,7 +970,7 @@ class DAW {
         else { gr.addColorStop(0, "#4F378B"); gr.addColorStop(1, "#381E72"); }
         ctx.fillStyle = gr; ctx.beginPath();
         
-        // Render loop with Fade Visualization
+        // Fade samples
         const fadeInSamples = track.fadeIn * buf.sampleRate;
         const fadeOutSamples = track.fadeOut * buf.sampleRate;
         
@@ -975,42 +986,27 @@ class DAW {
                 if (v > max) max = v; 
             }
             
-            // Calculate Gain for Fades
-            const sampleInClip = idx - start; // 0 to total
+            // Fades logic
+            const sampleInClip = idx - start;
             let gain = 1.0;
+            if (sampleInClip < fadeInSamples) gain = sampleInClip / fadeInSamples;
+            else if (sampleInClip > total - fadeOutSamples) gain = (total - sampleInClip) / fadeOutSamples;
             
-            // Fade In Logic
-            if (sampleInClip < fadeInSamples) {
-                gain = sampleInClip / fadeInSamples;
-            }
-            // Fade Out Logic
-            else if (sampleInClip > total - fadeOutSamples) {
-                gain = (total - sampleInClip) / fadeOutSamples;
-            }
-            
-            let h = Math.max(1, (max - min) * amp * gain); // Apply gain to height
+            let h = Math.max(1, (max - min) * amp * gain); 
             const y = (ctx.canvas.height - h) / 2;
             ctx.fillRect(i, y, 1, h);
         }
         
-        // Draw Overlay Fade Lines (White)
-        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        
-        // Line In
+        // Visual Lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.beginPath();
         if(track.fadeIn > 0) {
             const pxIn = (track.fadeIn / track.duration) * ctx.canvas.width;
-            ctx.moveTo(0, ctx.canvas.height); // Bottom left
-            ctx.lineTo(pxIn, 0); // Top
+            ctx.moveTo(0, ctx.canvas.height); ctx.lineTo(pxIn, 0);
         }
-        
-        // Line Out
         if(track.fadeOut > 0) {
             const pxOut = (track.fadeOut / track.duration) * ctx.canvas.width;
             const pxStart = ctx.canvas.width - pxOut;
-            ctx.moveTo(pxStart, 0); // Top
-            ctx.lineTo(ctx.canvas.width, ctx.canvas.height); // Bottom right
+            ctx.moveTo(pxStart, 0); ctx.lineTo(ctx.canvas.width, ctx.canvas.height);
         }
         ctx.stroke();
     }
@@ -1018,12 +1014,19 @@ class DAW {
     selectTrack(id) { this.selectedTrackId = id; this.renderAll(); }
 
     // --- Interactions ---
-    getEventX(e) { return (e.touches && e.touches.length) ? e.touches[0].clientX : e.clientX; }
+    getEventX(e) { 
+        if (e.changedTouches && e.changedTouches.length > 0) return e.changedTouches[0].clientX;
+        if (e.touches && e.touches.length > 0) return e.touches[0].clientX;
+        return e.clientX; 
+    }
     
     handleDragStart(e, track, el) {
         e.stopPropagation(); const startState = this.serializeCurrent();
         const startX = this.getEventX(e); const initLeft = parseFloat(el.style.left||0);
         const moveHandler = (ev) => {
+            // FIX: Prevent scrolling on mobile while dragging clip
+            if(ev.cancelable) ev.preventDefault();
+            
             const dx = this.getEventX(ev) - startX; let nl = initLeft + dx;
             if(this.snapEnabled) nl = Math.round(nl / (this.snapInterval*this.zoom)) * (this.snapInterval*this.zoom);
             if(nl < 0) nl = 0; el.style.left = nl + 'px';
@@ -1050,9 +1053,7 @@ class DAW {
             this.seek(Math.max(0, x / this.zoom));
         };
         const handleStart = (e) => {
-            // Don't trigger scrub if using multi-touch (pinching)
-            if (e.touches && e.touches.length > 1) return;
-
+            if (e.touches && e.touches.length > 1) return; // Ignore pinch
             const rect = this.scrollWrapper.getBoundingClientRect(); scrub(e, rect);
             const onMove = (ev) => scrub(ev, rect);
             const onEnd = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onEnd); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onEnd); };
@@ -1064,43 +1065,24 @@ class DAW {
         this.trackLanesEl.addEventListener('mousedown', e => { if(!e.target.closest('.clip')) handleStart(e); });
         this.scrollWrapper.addEventListener('wheel', e => { if(e.ctrlKey) { e.preventDefault(); const d = Math.sign(e.deltaY)*-1; this.setZoom(Math.max(10,Math.min(300,this.zoom+d*10))); document.getElementById('zoom-slider').value = this.zoom; } });
 
-        // --- Pinch to Zoom Logic ---
-        let initialPinchDist = null;
-        let initialZoom = null;
-
+        // Pinch Zoom
+        let initialPinchDist = null; let initialZoom = null;
         this.scrollWrapper.addEventListener('touchstart', (e) => {
             if (e.touches.length === 2) {
-                e.preventDefault(); // Prevent browser page zoom
-                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                e.preventDefault(); const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
-                initialPinchDist = Math.hypot(dx, dy);
-                initialZoom = this.zoom;
+                initialPinchDist = Math.hypot(dx, dy); initialZoom = this.zoom;
             }
         }, { passive: false });
-
         this.scrollWrapper.addEventListener('touchmove', (e) => {
             if (e.touches.length === 2 && initialPinchDist) {
-                e.preventDefault();
-                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                e.preventDefault(); const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
-                const dist = Math.hypot(dx, dy);
-                
-                // Calculate scale factor
-                const scale = dist / initialPinchDist;
-                const newZoom = Math.max(10, Math.min(300, initialZoom * scale));
-                
-                this.setZoom(newZoom);
-                // Sync slider if visible (desktop mostly, but good for state)
-                const slider = document.getElementById('zoom-slider');
-                if(slider) slider.value = newZoom;
+                const dist = Math.hypot(dx, dy); const scale = dist / initialPinchDist;
+                this.setZoom(Math.max(10, Math.min(300, initialZoom * scale)));
             }
         }, { passive: false });
-
-        this.scrollWrapper.addEventListener('touchend', (e) => {
-            if (e.touches.length < 2) {
-                initialPinchDist = null;
-            }
-        });
+        this.scrollWrapper.addEventListener('touchend', e => { if(e.touches.length < 2) initialPinchDist = null; });
     }
 
     // --- Audio ---
@@ -1113,12 +1095,15 @@ class DAW {
         this.snapEnabled = !this.snapEnabled; 
         const btn = document.getElementById('btn-snap');
         const btnMobile = document.getElementById('btn-mobile-snap');
+        const btnDrawer = document.getElementById('btn-snap-drawer');
         if(this.snapEnabled) {
             btn.classList.add('active');
             if(btnMobile) btnMobile.classList.add('active');
+            if(btnDrawer) btnDrawer.classList.add('active');
         } else {
             btn.classList.remove('active');
             if(btnMobile) btnMobile.classList.remove('active');
+            if(btnDrawer) btnDrawer.classList.remove('active');
         }
         this.renderAll(); 
     }
