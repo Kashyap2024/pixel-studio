@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Pixel Studio - V6 (Material Design)</title>
     <!-- Tone.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
@@ -47,7 +47,9 @@
             color: var(--on-surface);
             font-family: 'Google Sans', sans-serif;
             margin: 0;
-            height: 100vh;
+            /* CRITICAL FIX FOR MOBILE: Use dynamic viewport height */
+            height: 100vh; 
+            height: 100dvh; 
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -116,7 +118,6 @@
         #studio-layout {
             display: flex;
             flex: 1;
-            /* Replaced fixed calc with min-height: 0 to allow flexbox resizing */
             min-height: 0; 
             position: relative;
             overflow: hidden;
@@ -265,13 +266,17 @@
             content: ''; position: absolute; top: 0; bottom: 0; left: -15px; width: 30px; background: transparent;
         }
 
-        /* Transport Footer */
+        /* Transport Footer - MOBILE FIXES APPLIED */
         #transport {
             height: var(--transport-height);
             background: var(--surface-variant);
             border-top: 1px solid #000;
             display: flex; align-items: center; justify-content: center; gap: 24px;
             z-index: 30; flex-shrink: 0;
+            
+            /* Fix for iPhone Safe Area */
+            padding-bottom: env(safe-area-inset-bottom);
+            box-sizing: content-box; /* Ensure padding doesn't shrink height */
         }
         
         #time-container {
@@ -416,10 +421,7 @@
             /* Show Mobile Toolbar */
             #mobile-toolbar { display: flex; }
 
-            #time-container {
-                flex-direction: column; align-items: flex-end; 
-                font-size: 12px;
-            }
+            #time-container { flex-direction: column; align-items: center; }
             
             /* Keep Add Audio but simplfied */
             #btn-add-audio span { display: none; }
@@ -451,9 +453,13 @@
             #master-bus-sidebar { display: none; }
 
             /* Transport */
-            #transport { height: 80px; padding: 0 10px; }
+            #transport { 
+                height: 80px; 
+                padding: 0 10px; 
+                /* Padding fix for mobile within media query */
+                padding-bottom: calc(10px + env(safe-area-inset-bottom));
+            }
             #time-display { font-size: 18px; min-width: 100px; }
-            /* Show total time on mobile now */
             #total-time-display { display: inline !important; font-size: 12px; margin-left: 8px; color: var(--outline); }
             
             /* Modals */
@@ -501,7 +507,7 @@
 <!-- Track Options Modal (Mobile Popup) -->
 <div id="track-options-modal" class="modal-overlay">
     <div class="modal">
-        <!-- New Scrolling Title Structure -->
+        <!-- Scrolling Title -->
         <div class="scrolling-text-container">
             <div id="modal-track-name" class="scrolling-text-content">Track Options</div>
         </div>
@@ -731,7 +737,13 @@ class DAW {
         if(!track) return;
 
         const modal = document.getElementById('track-options-modal');
-        document.getElementById('modal-track-name').innerText = track.name;
+        // Update the SCROLLING title
+        const titleEl = document.getElementById('modal-track-name');
+        titleEl.innerText = track.name;
+        // Trigger reflow to restart animation
+        titleEl.style.animation = 'none';
+        titleEl.offsetHeight; /* trigger reflow */
+        titleEl.style.animation = 'marquee 10s linear infinite';
         
         // Bind Volume
         const volSlider = document.getElementById('modal-track-vol');
@@ -966,6 +978,9 @@ class DAW {
             this.seek(Math.max(0, x / this.zoom));
         };
         const handleStart = (e) => {
+            // Don't trigger scrub if using multi-touch (pinching)
+            if (e.touches && e.touches.length > 1) return;
+
             const rect = this.scrollWrapper.getBoundingClientRect(); scrub(e, rect);
             const onMove = (ev) => scrub(ev, rect);
             const onEnd = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onEnd); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onEnd); };
@@ -976,6 +991,44 @@ class DAW {
         this.playhead.addEventListener('mousedown', e => {e.stopPropagation(); handleStart(e)}); this.playhead.addEventListener('touchstart', e => {e.stopPropagation(); handleStart(e)}, {passive:false});
         this.trackLanesEl.addEventListener('mousedown', e => { if(!e.target.closest('.clip')) handleStart(e); });
         this.scrollWrapper.addEventListener('wheel', e => { if(e.ctrlKey) { e.preventDefault(); const d = Math.sign(e.deltaY)*-1; this.setZoom(Math.max(10,Math.min(300,this.zoom+d*10))); document.getElementById('zoom-slider').value = this.zoom; } });
+
+        // --- Pinch to Zoom Logic ---
+        let initialPinchDist = null;
+        let initialZoom = null;
+
+        this.scrollWrapper.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                e.preventDefault(); // Prevent browser page zoom
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                initialPinchDist = Math.hypot(dx, dy);
+                initialZoom = this.zoom;
+            }
+        }, { passive: false });
+
+        this.scrollWrapper.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2 && initialPinchDist) {
+                e.preventDefault();
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const dist = Math.hypot(dx, dy);
+                
+                // Calculate scale factor
+                const scale = dist / initialPinchDist;
+                const newZoom = Math.max(10, Math.min(300, initialZoom * scale));
+                
+                this.setZoom(newZoom);
+                // Sync slider if visible (desktop mostly, but good for state)
+                const slider = document.getElementById('zoom-slider');
+                if(slider) slider.value = newZoom;
+            }
+        }, { passive: false });
+
+        this.scrollWrapper.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) {
+                initialPinchDist = null;
+            }
+        });
     }
 
     // --- Audio ---
