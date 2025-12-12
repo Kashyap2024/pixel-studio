@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pixel Studio - V6 (Material Design)</title>
+    <!-- Tone.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Material You / Pixel Palette */
+            --primary: #D0BCFF;
+            --on-primary: #381E72;
+            --primary-container: #4F378B;
+            --on-primary-container: #EADDFF;
+            
+            --surface: #141218;
+            --surface-variant: #2B2930;
+            --surface-bright: #36343B;
+            
+            --on-surface: #E6E1E5;
+            --outline: #938F99;
+            
+            --accent-success: #B8F397; /* Lime */
+            --accent-danger: #F2B8B5; /* Pink */
+            --accent-warning: #FFD740;
+
+            --playhead-color: #B8F397;
+            --grid-line: rgba(255, 255, 255, 0.05);
+
+            /* Dimensions */
+            --header-height: 72px;
+            --track-height: 120px;
+            --sidebar-width: 260px;
+            --transport-height: 90px;
+            
+            /* Shapes */
+            --radius-btn: 24px;
+            --radius-panel: 16px;
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-user-drag: none; outline: none; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            background-color: var(--surface);
+            color: var(--on-surface);
+            font-family: 'Google Sans', sans-serif;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-size: 14px;
+        }
+
+        /* --- Custom Scrollbar --- */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--outline); }
+
+        /* --- Header --- */
+        header {
+            height: var(--header-height);
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--surface-variant);
+            border-bottom: 1px solid #000;
+            z-index: 20;
+            flex-shrink: 0;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 16px; overflow: hidden; }
+        h1 { font-size: 20px; font-weight: 500; display: flex; align-items: center; gap: 10px; margin: 0; white-space: nowrap; }
+        .badge { font-size: 10px; background: var(--primary); color: var(--on-primary); padding: 4px 8px; border-radius: 8px; font-weight: 700; }
+        
+        .project-meta { display: flex; flex-direction: column; justify-content: center; border-left: 1px solid #444; padding-left: 16px; height: 40px; overflow: hidden; }
+        #header-project-name { font-size: 14px; font-weight: 500; color: var(--on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #save-status { font-size: 11px; color: var(--outline); font-family: 'Roboto Mono', monospace; }
+
+        .toolbar { display: flex; gap: 12px; align-items: center; }
+
+        .btn {
+            border: none; cursor: pointer; height: 40px; padding: 0 20px; border-radius: var(--radius-btn);
+            font-family: inherit; font-size: 14px; font-weight: 500;
+            display: flex; align-items: center; gap: 8px;
+            transition: 0.2s;
+            background: var(--surface-bright);
+            color: var(--on-surface);
+            border: 1px solid transparent;
+        }
+        .btn:active:not(:disabled) { transform: scale(0.95); }
+        .btn:disabled { opacity: 0.4; cursor: default; }
+
+        .btn.primary { background: var(--primary); color: var(--on-primary); }
+        .btn.primary:hover { box-shadow: 0 0 15px rgba(208, 188, 255, 0.3); }
+
+        .btn.icon-only { width: 40px; padding: 0; justify-content: center; font-size: 18px; }
+        
+        .btn.toggle.active { 
+            background: var(--primary-container); 
+            color: var(--on-primary-container); 
+            border: 1px solid var(--primary); 
+        }
+
+        .zoom-control { 
+            display: flex; align-items: center; gap: 10px; font-size: 12px; 
+            background: rgba(0,0,0,0.2); padding: 0 16px; height: 40px; border-radius: var(--radius-btn); 
+        }
+        input[type=range] { accent-color: var(--primary); cursor: pointer; }
+
+        /* --- Main Layout --- */
+        #studio-layout {
+            display: flex;
+            flex: 1;
+            /* Replaced fixed calc with min-height: 0 to allow flexbox resizing */
+            min-height: 0; 
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: var(--surface);
+            border-right: 1px solid #000;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            transition: width 0.2s;
+        }
+        
+        .sidebar-spacer { height: 36px; background: var(--surface); border-bottom: 1px solid #333; flex-shrink: 0; }
+
+        #track-controls-container { flex: 1; overflow-y: auto; overflow-x: hidden; }
+
+        /* Track Controls */
+        .track-header {
+            height: var(--track-height);
+            padding: 12px 16px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 12px;
+            background: var(--surface-variant);
+            transition: background 0.2s;
+            position: relative;
+        }
+        .track-header.selected { background: #36343B; }
+        .track-header.selected::before { content:''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--primary); }
+
+        .track-info { display: flex; justify-content: space-between; align-items: center; }
+        .track-name { font-weight: 500; font-size: 14px; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+        
+        .track-buttons { display: flex; gap: 8px; }
+        .circle-btn {
+            width: 28px; height: 28px; border-radius: 50%; border: 1px solid #555; background: transparent; color: #aaa;
+            cursor: pointer; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+            transition: 0.2s;
+        }
+        .circle-btn:hover { border-color: #888; color: white; }
+        .circle-btn.mute.active { background: var(--accent-danger); color: #3f0000; border-color: var(--accent-danger); }
+        .circle-btn.solo.active { background: var(--accent-warning); color: #3f2c00; border-color: var(--accent-warning); }
+
+        .slider-row { display: flex; align-items: center; gap: 10px; }
+        .vol-slider { 
+            flex: 1; height: 4px; border-radius: 2px; -webkit-appearance: none; background: #49454F; 
+        }
+        .vol-slider::-webkit-slider-thumb { 
+            -webkit-appearance: none; width: 16px; height: 16px; background: var(--on-surface); border-radius: 50%; 
+            cursor: pointer; transition: transform 0.1s;
+        }
+        .vol-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+        .fade-row { display: flex; gap: 12px; font-size: 11px; color: var(--outline); margin-top: 2px; }
+        .fade-inp { display: flex; align-items: center; gap: 6px; }
+        .fade-inp input { 
+            width: 40px; background: #1D1B20; border: none; color: var(--on-surface); 
+            border-radius: 4px; padding: 4px; font-size: 11px; font-family: 'Roboto Mono', monospace; text-align: center;
+        }
+
+        /* Master Bus (Desktop) */
+        #master-bus-sidebar {
+            height: 150px;
+            background: #111014;
+            border-top: 1px solid #333;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .master-head { display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; color: var(--outline); letter-spacing: 1px; }
+        .master-meter-container { 
+            flex: 1; background: #000; border-radius: 8px; overflow: hidden; padding: 3px; border: 1px solid #333; 
+        }
+        canvas.master-meter { width: 100%; height: 100%; display: block; border-radius: 4px; }
+
+        /* Timeline */
+        #timeline-container {
+            flex: 1;
+            background: var(--surface);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #scroll-wrapper { flex: 1; overflow: auto; position: relative; -webkit-overflow-scrolling: touch; }
+
+        #timeline-content {
+            position: relative;
+            min-width: 100%;
+            height: 100%;
+            background-image: linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 50px 100%;
+        }
+
+        #ruler {
+            height: 36px;
+            background: var(--surface-variant);
+            border-bottom: 1px solid #333;
+            position: sticky; top: 0; z-index: 15; cursor: crosshair;
+        }
+        .ruler-mark { 
+            position: absolute; top: 0; bottom: 0; border-left: 1px solid #555; 
+            font-size: 11px; color: var(--outline); padding-left: 6px; line-height: 34px; pointer-events: none; 
+        }
+
+        /* Clips */
+        .track-lane { height: var(--track-height); position: relative; border-bottom: 1px solid #222; }
+        
+        .clip {
+            position: absolute; height: 96px; top: 12px;
+            background: var(--primary-container);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            cursor: grab;
+            overflow: hidden;
+            transition: background-color 0.1s, border-color 0.1s, box-shadow 0.1s;
+            touch-action: none;
+        }
+        .clip.selected { border: 2px solid var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.4); z-index: 10; }
+        .clip-label { position: absolute; top: 6px; left: 10px; font-size: 11px; font-weight: 500; color: var(--on-primary-container); pointer-events: none; z-index: 2; }
+        .clip:active { cursor: grabbing; transform: scale(0.99); }
+
+        /* Playhead */
+        #playhead {
+            position: absolute; top: 0; bottom: 0; width: 2px;
+            background: var(--accent-success);
+            z-index: 100;
+            box-shadow: 0 0 8px var(--accent-success);
+            pointer-events: auto;
+            cursor: col-resize;
+            touch-action: none;
+        }
+        #playhead::after {
+            content: ''; position: absolute; top: 0; left: -6px;
+            border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 10px solid var(--accent-success);
+        }
+        #playhead::before {
+            content: ''; position: absolute; top: 0; bottom: 0; left: -15px; width: 30px; background: transparent;
+        }
+
+        /* Transport Footer */
+        #transport {
+            height: var(--transport-height);
+            background: var(--surface-variant);
+            border-top: 1px solid #000;
+            display: flex; align-items: center; justify-content: center; gap: 24px;
+            z-index: 30; flex-shrink: 0;
+        }
+        
+        #time-container {
+            display: flex; align-items: baseline; gap: 8px;
+            font-family: 'Roboto Mono', monospace; color: var(--on-surface);
+        }
+        #time-display { font-size: 24px; min-width: 140px; text-align: right; }
+        #total-time-display { font-size: 14px; color: var(--outline); }
+
+        .transport-btn {
+            width: 48px; height: 48px; border-radius: 50%; border: none; background: #444; color: #eee;
+            cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; transition: 0.2s;
+        }
+        .transport-btn:active { background: #555; transform: scale(0.95); }
+        .transport-btn.main-play { 
+            width: 64px; height: 64px; font-size: 28px; 
+            background: var(--primary); color: var(--on-primary); 
+            box-shadow: 0 4px 12px rgba(208, 188, 255, 0.3);
+        }
+
+        /* Common Modal Styles */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); z-index: 1000;
+            display: none; justify-content: center; align-items: center;
+            backdrop-filter: blur(2px);
+        }
+        .modal-overlay.open { display: flex; }
+        
+        .modal {
+            background: var(--surface-variant); width: 500px; max-width: 90%;
+            border-radius: 24px; padding: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 1px solid var(--outline);
+        }
+        .modal h2 { margin-top: 0; font-weight: 500; font-size: 18px; margin-bottom: 20px;}
+        
+        /* Marquee / Scrolling Text Animation */
+        .scrolling-text-container {
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            margin-bottom: 20px;
+            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+        }
+        
+        .scrolling-text-content {
+            display: inline-block;
+            font-size: 18px; 
+            font-weight: 500;
+            color: var(--on-surface);
+            padding-left: 100%; /* Start off-screen */
+            animation: marquee 10s linear infinite;
+        }
+
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+
+        .setting-group { margin-bottom: 20px; }
+        .setting-group label { display: block; font-size: 13px; color: var(--outline); margin-bottom: 8px; }
+        .setting-group input[type="text"], .setting-group input[type="number"] {
+            width: 100%; background: #1D1B20; border: 1px solid #444; color: white;
+            padding: 10px; border-radius: 8px; font-family: inherit;
+        }
+        .project-list {
+            max-height: 200px; overflow-y: auto; background: #1D1B20; border-radius: 12px; margin-top: 10px;
+        }
+        .project-item {
+            padding: 12px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+
+        /* Hamburger Menu (Drawer) */
+        #hamburger-menu {
+            position: fixed; top: 0; left: 0; bottom: 0; width: 280px;
+            background: var(--surface-variant); z-index: 1100;
+            transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 24px; box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column; gap: 16px;
+        }
+        #hamburger-menu.open { transform: translateX(0); }
+        .drawer-header { font-size: 20px; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; }
+        .drawer-section { border-bottom: 1px solid #444; padding-bottom: 16px; margin-bottom: 8px; }
+        .drawer-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: #333; margin-bottom: 8px; cursor: pointer; }
+        .drawer-item:active { background: #444; }
+
+        /* Mobile Sub-Header / Toolbar */
+        #mobile-toolbar {
+            display: none; /* Hidden on Desktop */
+            height: 56px;
+            background: var(--surface-variant);
+            border-bottom: 1px solid #000;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            flex-shrink: 0;
+        }
+        #mobile-project-name {
+            font-size: 14px; font-weight: 500; color: var(--on-surface); 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;
+        }
+        .mobile-actions { display: flex; gap: 12px; }
+
+        /* Toast */
+        #toast {
+            position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: var(--on-surface); color: var(--surface); 
+            padding: 12px 24px; border-radius: 24px; font-weight: 500;
+            opacity: 0; transition: 0.3s; pointer-events: none; z-index: 2000;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3); white-space: nowrap;
+        }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* Empty State */
+        #empty-state {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; color: var(--outline); pointer-events: none; width: 80%;
+        }
+        #empty-state h2 { color: var(--on-surface); margin-bottom: 8px; font-weight: 500;}
+
+        .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* --- RESPONSIVE MOBILE STYLES --- */
+        #btn-hamburger { display: none; } /* Hidden on desktop */
+
+        @media (max-width: 768px) {
+            /* Header */
+            header { padding: 0 16px; height: 60px; }
+            h1 { font-size: 18px; }
+            .badge, .project-meta { display: none; }
+            
+            #btn-hamburger { display: flex; margin-right: 8px; }
+            
+            /* Hide Desktop Toolbar Items */
+            .toolbar .btn:not(.primary):not(:last-child):not(#btn-add-audio) { display: none; }
+            .zoom-control { display: none; }
+            
+            /* Show Mobile Toolbar */
+            #mobile-toolbar { display: flex; }
+
+            #time-container {
+                flex-direction: column; align-items: flex-end; 
+                font-size: 12px;
+            }
+            
+            /* Keep Add Audio but simplfied */
+            #btn-add-audio span { display: none; }
+            #btn-add-audio { width: 40px; padding: 0; justify-content: center; font-size: 20px; }
+
+            /* Sidebar (Track List) */
+            #sidebar { width: 70px; border-right: 1px solid #333; }
+            .sidebar-spacer { height: 10px; background: var(--surface); }
+            
+            /* Track Header (Button Look) */
+            .track-header { 
+                padding: 4px; 
+                justify-content: center; 
+                align-items: center; 
+                background: #222;
+                border-bottom: 4px solid var(--surface); /* Gap between buttons */
+                border-radius: 8px;
+                margin: 0 4px 8px 4px;
+                cursor: pointer;
+                border-left: none !important; /* Remove desktop selection border */
+            }
+            .track-header.selected { background: var(--primary-container); color: var(--on-primary-container); }
+            
+            .track-info { flex-direction: column; gap: 4px; width: 100%; text-align: center; }
+            .track-name { font-size: 10px; max-width: 60px; }
+            .track-buttons, .slider-row, .fade-row { display: none; } /* Hide controls, show on popup */
+            
+            /* Hide Sidebar Master Bus */
+            #master-bus-sidebar { display: none; }
+
+            /* Transport */
+            #transport { height: 80px; padding: 0 10px; }
+            #time-display { font-size: 18px; min-width: 100px; }
+            /* Show total time on mobile now */
+            #total-time-display { display: inline !important; font-size: 12px; margin-left: 8px; color: var(--outline); }
+            
+            /* Modals */
+            .modal { width: 95%; max-width: 95%; padding: 20px; bottom: 0; border-radius: 24px 24px 0 0; position: absolute; border-bottom: none; }
+            .modal-overlay { align-items: flex-end; } /* Bottom sheet style */
+        }
+    </style>
+</head>
+<body>
+
+<div id="toast">Engine Ready</div>
+
+<!-- Hamburger Drawer -->
+<div id="hamburger-menu">
+    <div class="drawer-header">
+        <span>Menu</span>
+        <button class="btn icon-only" onclick="app.toggleHamburger()">✕</button>
+    </div>
+    
+    <!-- Master Bus (Mobile) -->
+    <div class="drawer-section">
+        <div class="master-head" style="margin-bottom:10px">MASTER OUTPUT</div>
+        <input type="range" class="vol-slider" min="-60" max="6" value="0" step="0.1" oninput="app.setMasterVolume(this.value)" style="width:100%; margin-bottom:10px">
+        <div class="master-meter-container" style="height:20px">
+            <canvas id="mobile-master-meter" class="master-meter"></canvas>
+        </div>
+    </div>
+
+    <!-- Tools -->
+    <div class="drawer-section">
+        <div class="drawer-item" onclick="app.undo(); app.toggleHamburger()">↩ Undo</div>
+        <div class="drawer-item" onclick="app.redo(); app.toggleHamburger()">↪ Redo</div>
+    </div>
+
+    <!-- Zoom -->
+    <div class="drawer-section">
+        <label style="color:#888; font-size:12px; margin-bottom:8px; display:block">Zoom</label>
+        <input type="range" style="width:100%" min="10" max="300" value="50" oninput="app.setZoom(this.value)">
+    </div>
+
+    <div class="drawer-item" onclick="app.openSettings(); app.toggleHamburger()">⚙️ Project Settings</div>
+</div>
+<div id="hamburger-overlay" onclick="app.toggleHamburger()" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1099; display:none;"></div>
+
+<!-- Track Options Modal (Mobile Popup) -->
+<div id="track-options-modal" class="modal-overlay">
+    <div class="modal">
+        <!-- New Scrolling Title Structure -->
+        <div class="scrolling-text-container">
+            <div id="modal-track-name" class="scrolling-text-content">Track Options</div>
+        </div>
+        
+        <div class="setting-group">
+            <label>Volume</label>
+            <input type="range" id="modal-track-vol" class="vol-slider" min="-60" max="6" step="0.1" style="width:100%">
+        </div>
+        <div style="display:flex; gap:16px; margin-bottom:20px">
+            <button class="btn" id="modal-btn-mute" style="flex:1">Mute</button>
+            <button class="btn" id="modal-btn-solo" style="flex:1">Solo</button>
+        </div>
+        <div class="setting-group" style="display:flex; gap:12px">
+            <div style="flex:1">
+                <label>Fade In (s)</label>
+                <input type="number" id="modal-fade-in" step="0.1" min="0">
+            </div>
+            <div style="flex:1">
+                <label>Fade Out (s)</label>
+                <input type="number" id="modal-fade-out" step="0.1" min="0">
+            </div>
+        </div>
+        <div class="modal-actions" style="justify-content: space-between;">
+            <button class="btn" style="background:#410e0b; color:#ffb4ab" onclick="app.deleteSelected(); document.getElementById('track-options-modal').classList.remove('open')">Delete Track</button>
+            <button class="btn primary" onclick="document.getElementById('track-options-modal').classList.remove('open')">Done</button>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="modal-overlay">
+    <div class="modal">
+        <h2>Settings & Projects</h2>
+        <div class="setting-group">
+            <label>Current Project Name</label>
+            <div style="display:flex; gap:8px">
+                <input type="text" id="project-name" placeholder="Untitled Project" onchange="app.renameProject(this.value)">
+                <button class="btn primary" onclick="app.manualSave()">Save</button>
+            </div>
+        </div>
+        <div class="setting-group">
+            <label>Saved Drafts</label>
+            <div class="project-list" id="saved-projects-list">
+                <div style="padding:12px; color:#666; text-align:center">No saved projects</div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn" onclick="document.getElementById('settings-modal').classList.remove('open')">Close</button>
+        </div>
+    </div>
+</div>
+
+<header>
+    <div class="header-left">
+        <button class="btn icon-only" id="btn-hamburger" onclick="app.toggleHamburger()">☰</button>
+        <h1>Pixel Studio <span class="badge">V6</span></h1>
+        <div class="project-meta">
+            <div id="header-project-name">Untitled Project</div>
+            <div id="save-status">Ready</div>
+        </div>
+    </div>
+    
+    <div class="toolbar">
+        <!-- Desktop Toolbar Items -->
+        <button class="btn icon-only" onclick="app.openSettings()" title="Settings">⚙️</button>
+        
+        <div style="width: 1px; height: 24px; background: #444; margin: 0 4px;"></div>
+
+        <button class="btn icon-only" onclick="app.undo()" id="btn-undo" title="Undo" disabled>↩</button>
+        <button class="btn icon-only" onclick="app.redo()" id="btn-redo" title="Redo" disabled>↪</button>
+        
+        <div style="width: 1px; height: 24px; background: #444; margin: 0 4px;"></div>
+
+        <button class="btn toggle" id="btn-snap" onclick="app.toggleSnap()" title="Snap">🧲</button>
+        <button class="btn" onclick="app.splitSelectedTrack()" title="Split">✂ <span>Split</span></button>
+        <button class="btn" onclick="app.deleteSelected()" title="Delete">🗑 <span>Trash</span></button>
+
+        <div class="zoom-control">
+            <span>Zoom</span>
+            <input type="range" id="zoom-slider" min="10" max="300" value="50" oninput="app.setZoom(this.value)">
+        </div>
+    </div>
+
+    <div class="toolbar" style="margin-left:auto">
+        <button class="btn" id="btn-add-audio" onclick="document.getElementById('file-input').click()">+ <span>Add Audio</span></button>
+        <button class="btn primary" onclick="app.exportMix()">
+            <div class="spinner" id="exp-spinner"></div>
+            <span>Export</span>
+        </button>
+    </div>
+</header>
+
+<!-- Mobile Sub-Header Toolbar -->
+<div id="mobile-toolbar">
+    <div id="mobile-project-name">Untitled Project</div>
+    <div class="mobile-actions" style="display: flex; gap: 8px;">
+        <button class="btn icon-only" id="btn-mobile-snap" onclick="app.toggleSnap()">🧲</button>
+        <button class="btn icon-only" onclick="app.splitSelectedTrack()">✂</button>
+        <button class="btn icon-only" onclick="app.deleteSelected()">🗑</button>
+    </div>
+</div>
+
+<input type="file" id="file-input" multiple accept="audio/*" style="display:none">
+
+<div id="studio-layout">
+    <!-- Sidebar -->
+    <div id="sidebar">
+        <div class="sidebar-spacer"></div> 
+        <div id="track-controls-container"></div>
+        
+        <!-- Desktop Master Bus -->
+        <div id="master-bus-sidebar">
+            <div class="master-head">
+                <span>MASTER OUTPUT</span>
+                <span id="master-vol-text">0.0 dB</span>
+            </div>
+            <input type="range" class="vol-slider" min="-60" max="6" value="0" step="0.1" oninput="app.setMasterVolume(this.value)">
+            <div class="master-meter-container">
+                <canvas id="desktop-master-meter" class="master-meter"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline -->
+    <div id="timeline-container">
+        <div id="scroll-wrapper">
+            <div id="timeline-content">
+                <div id="ruler"></div>
+                <div id="playhead"></div>
+                <div id="tracks-container"></div>
+            </div>
+        </div>
+        <div id="empty-state">
+            <div style="font-size: 40px; margin-bottom: 10px">🎵</div>
+            <h2>Start Creating</h2>
+            <p>Drag audio files here to begin</p>
+        </div>
+    </div>
+</div>
+
+<div id="transport">
+    <button class="transport-btn" onclick="app.seekToStart()">⏮</button>
+    <button class="transport-btn" onclick="app.stop()">⏹</button>
+    <button class="transport-btn main-play" onclick="app.togglePlay()" id="play-btn">▶</button>
+    <div id="time-container">
+        <div id="time-display">00:00:00</div>
+        <div id="total-time-display">/ 00:00:00</div>
+    </div>
+</div>
+
+<script>
+// --- DB & App Class ---
+const DB_NAME = 'PixelStudioDB_V6'; const DB_VERSION = 1;
+const dbHelper = {
+    open: () => new Promise((res, rej) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = e => {
+            const db = e.target.result;
+            if(!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', {keyPath: 'name'});
+            if(!db.objectStoreNames.contains('audioFiles')) db.createObjectStore('audioFiles', {keyPath: 'id'});
+        };
+        req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
+    }),
+    saveProject: async (name, state, audioFiles) => {
+        const db = await dbHelper.open(); const tx = db.transaction(['projects', 'audioFiles'], 'readwrite');
+        tx.objectStore('projects').put({name, state, date: new Date()});
+        const fs = tx.objectStore('audioFiles'); audioFiles.forEach(f => fs.put(f));
+        return new Promise(r => tx.oncomplete = r);
+    },
+    loadProject: async (name) => {
+        const db = await dbHelper.open(); return new Promise((r, j) => {
+            const tx = db.transaction('projects', 'readonly');
+            const req = tx.objectStore('projects').get(name);
+            req.onsuccess = () => r(req.result); req.onerror = () => j(req.error);
+        });
+    },
+    loadFile: async (id) => { const db = await dbHelper.open(); return new Promise(r => { db.transaction('audioFiles', 'readonly').objectStore('audioFiles').get(id).onsuccess = e => r(e.target.result); }); },
+    listProjects: async () => { const db = await dbHelper.open(); return new Promise(r => { db.transaction('projects', 'readonly').objectStore('projects').getAllKeys().onsuccess = e => r(e.target.result); }); },
+    deleteProject: async (name) => { const db = await dbHelper.open(); const tx = db.transaction('projects', 'readwrite'); tx.objectStore('projects').delete(name); return new Promise(r => tx.oncomplete = r); }
+};
+
+class DAW {
+    constructor() {
+        this.initialized = false;
+        this.currentProjectName = "Untitled Project";
+        this.tracks = []; this.zoom = 50; this.isPlaying = false; this.playbackCursor = 0; this.selectedTrackId = null;
+        this.snapEnabled = false; this.snapInterval = 0.5; this.settings = {nudgeAmount: 0.1};
+        this.history = []; this.redoStack = [];
+
+        this.trackHeadersEl = document.getElementById('track-controls-container');
+        this.trackLanesEl = document.getElementById('tracks-container');
+        this.rulerEl = document.getElementById('ruler');
+        this.timelineContent = document.getElementById('timeline-content');
+        this.scrollWrapper = document.getElementById('scroll-wrapper');
+        this.playhead = document.getElementById('playhead');
+        
+        this.masterVol = new Tone.Volume(0).toDestination();
+        this.meter = new Tone.Meter({channels: 2, smoothing: 0.8});
+        this.masterVol.connect(this.meter);
+        
+        this.setupDragDrop();
+        this.setupTimelineInteractions();
+        this.animate = this.animate.bind(this);
+        requestAnimationFrame(this.animate);
+        
+        const startAudio = async () => { if(!this.initialized) { await Tone.start(); this.initialized = true; } };
+        document.body.addEventListener('click', startAudio, {once: true});
+        document.body.addEventListener('touchstart', startAudio, {once: true});
+    }
+
+    // --- Mobile UI Interactions ---
+    toggleHamburger() {
+        document.getElementById('hamburger-menu').classList.toggle('open');
+        const overlay = document.getElementById('hamburger-overlay');
+        overlay.style.display = overlay.style.display === 'block' ? 'none' : 'block';
+    }
+
+    openTrackOptions(trackId) {
+        // Only trigger on mobile width or if requested
+        if(window.innerWidth > 768) {
+            this.selectTrack(trackId);
+            return;
+        }
+        
+        this.selectTrack(trackId);
+        const track = this.tracks.find(t => t.id === trackId);
+        if(!track) return;
+
+        const modal = document.getElementById('track-options-modal');
+        document.getElementById('modal-track-name').innerText = track.name;
+        
+        // Bind Volume
+        const volSlider = document.getElementById('modal-track-vol');
+        volSlider.value = track.volume;
+        volSlider.oninput = (e) => this.setTrackVolume(trackId, e.target.value);
+        
+        // Bind Mute/Solo
+        const btnMute = document.getElementById('modal-btn-mute');
+        btnMute.className = `btn ${track.isMuted ? 'active' : ''}`;
+        btnMute.style.background = track.isMuted ? 'var(--accent-danger)' : '';
+        btnMute.onclick = () => {
+            this.toggleMute(trackId);
+            btnMute.className = `btn ${track.isMuted ? 'active' : ''}`;
+            btnMute.style.background = track.isMuted ? 'var(--accent-danger)' : '';
+        };
+
+        const btnSolo = document.getElementById('modal-btn-solo');
+        btnSolo.onclick = () => this.toast("Solo WIP");
+
+        // Bind Fades
+        const fadeIn = document.getElementById('modal-fade-in');
+        const fadeOut = document.getElementById('modal-fade-out');
+        fadeIn.value = track.fadeIn;
+        fadeOut.value = track.fadeOut;
+        fadeIn.onchange = (e) => this.setFade(trackId, 'in', e.target.value);
+        fadeOut.onchange = (e) => this.setFade(trackId, 'out', e.target.value);
+
+        modal.classList.add('open');
+    }
+
+    // --- Standard Logic ---
+    updateProjectUI() {
+        document.getElementById('header-project-name').innerText = this.currentProjectName;
+        document.getElementById('project-name').value = this.currentProjectName;
+        document.getElementById('mobile-project-name').innerText = this.currentProjectName;
+        const totalDur = this.tracks.reduce((max, t) => Math.max(max, t.startTime + t.duration), 0);
+        document.getElementById('total-time-display').innerText = "/ " + this.formatTime(totalDur);
+    }
+
+    triggerAutoSave() {
+        if(this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
+        document.getElementById('save-status').innerText = "Unsaved...";
+        this.autoSaveTimer = setTimeout(() => { this.saveProjectInternal(true); }, 1000);
+    }
+    manualSave() { this.saveProjectInternal(false); }
+    async saveProjectInternal(isAuto) {
+        const state = this.serializeCurrent();
+        const audioFiles = this.tracks.map(t => ({id: t._bufferId, buffer: t._rawBuffer})).filter(f => f.buffer);
+        if(!isAuto) this.toast('Saving...');
+        document.getElementById('save-status').innerText = "Saving...";
+        try {
+            await dbHelper.saveProject(this.currentProjectName, JSON.parse(state), audioFiles);
+            if(!isAuto) { this.toast('Saved!'); this.renderProjectList(); }
+            document.getElementById('save-status').innerText = "Saved";
+        } catch(e) { console.error(e); document.getElementById('save-status').innerText = "Failed"; }
+    }
+
+    renameProject(newName) { if(newName.trim()) { this.currentProjectName = newName.trim(); this.updateProjectUI(); this.triggerAutoSave(); } }
+    openSettings() { document.getElementById('settings-modal').classList.add('open'); this.renderProjectList(); }
+    updateSettings() { const val = parseFloat(document.getElementById('setting-nudge').value); if(val > 0) this.settings.nudgeAmount = val; }
+
+    async renderProjectList() {
+        const list = document.getElementById('saved-projects-list'); list.innerHTML = 'Loading...';
+        const names = await dbHelper.listProjects(); list.innerHTML = '';
+        if(names.length === 0) list.innerHTML = '<div style="padding:12px;text-align:center">No saved projects</div>';
+        names.forEach(name => {
+            const div = document.createElement('div'); div.className = 'project-item';
+            div.innerHTML = `<span style="color:#fff">${name}</span><div style="display:flex;gap:8px"><button class="btn" style="height:28px;font-size:11px" onclick="app.loadProject('${name}')">Load</button><button class="btn" style="height:28px;font-size:11px;background:#410e0b;color:#ffb4ab" onclick="app.deleteProject('${name}')">X</button></div>`;
+            list.appendChild(div);
+        });
+    }
+    
+    async loadProject(name) {
+        if(!confirm(`Load "${name}"?`)) return;
+        this.toast('Loading...');
+        try {
+            const proj = await dbHelper.loadProject(name); if(!proj) throw new Error();
+            this.stop(); this.tracks.forEach(t => { if(t.player) t.player.dispose(); }); this.tracks = [];
+            this.currentProjectName = proj.name;
+            for(let tData of proj.state) {
+                const f = await dbHelper.loadFile(tData._bufferId);
+                if(f && f.buffer) {
+                    const buf = await this.decodeAudio(f.buffer);
+                    const t = this.createTrack(tData.name, buf, tData.startTime, tData.offset, tData.duration);
+                    t._rawBuffer = f.buffer; t.volume = tData.volume; t.fadeIn = tData.fadeIn; t.fadeOut = tData.fadeOut; t.isMuted = tData.isMuted;
+                }
+            }
+            this.renderAll(); this.updateProjectUI(); this.toast('Loaded'); 
+            document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('open'));
+        } catch(e) { this.toast('Failed'); }
+    }
+    async deleteProject(name) { if(confirm('Delete?')) { await dbHelper.deleteProject(name); this.renderProjectList(); } }
+
+    async addFiles(files) {
+        this.saveState(); document.getElementById('empty-state').style.display = 'none';
+        for (let file of files) {
+            this.toast(`Loading ${file.name}...`);
+            try {
+                const ab = await file.arrayBuffer();
+                const buf = await this.decodeAudio(ab);
+                const t = this.createTrack(file.name, buf); t._rawBuffer = ab;
+            } catch (e) { this.toast('Error'); }
+        }
+        this.renderAll(); this.triggerAutoSave();
+    }
+    async decodeAudio(ab) {
+        const temp = ab.slice(0);
+        return new Promise(r => Tone.context.decodeAudioData(temp).then(b => { const tb = new Tone.ToneAudioBuffer(); tb.set(b); r(tb); }));
+    }
+
+    createTrack(name, buffer, startTime=0, offset=0, duration=null) {
+        const id = 't_' + Math.random().toString(36).substr(2, 9);
+        const track = {id, name, buffer, _bufferId: id+'_buf', _rawBuffer: null, startTime, offset, duration: duration||buffer.duration, isMuted: false, volume: 0, fadeIn: 0, fadeOut: 0, player: null};
+        this.tracks.push(track); this.selectTrack(id); return track;
+    }
+
+    // --- Rendering ---
+    renderAll() {
+        this.trackHeadersEl.innerHTML = ''; this.trackLanesEl.innerHTML = '';
+        document.getElementById('empty-state').style.display = this.tracks.length ? 'none' : 'block';
+        const maxDur = this.tracks.reduce((m, t) => Math.max(m, t.startTime + t.duration), 0);
+        const w = Math.max(window.innerWidth - 100, (maxDur + 10) * this.zoom);
+        this.timelineContent.style.width = `${w}px`;
+        const gridPx = this.snapEnabled ? (this.snapInterval * this.zoom) : (1 * this.zoom);
+        this.timelineContent.style.backgroundSize = `${gridPx}px 100%, 100% 120px`;
+        this.renderRuler(w);
+        this.tracks.forEach(t => { this.renderTrackHeader(t); this.renderTrackLane(t); });
+        this.updateProjectUI();
+    }
+
+    renderRuler(w) {
+        this.rulerEl.innerHTML = '';
+        const step = this.zoom > 100 ? 0.5 : (this.zoom > 40 ? 1 : 5);
+        const tot = w / this.zoom;
+        for(let i=0; i < tot; i += step) {
+            if (i % step !== 0) continue;
+            const m = document.createElement('div'); m.className = 'ruler-mark';
+            m.style.left = (i * this.zoom) + 'px'; m.innerText = this.formatTime(i, true);
+            if(i % (step*2) === 0) m.style.borderLeftColor = '#888';
+            this.rulerEl.appendChild(m);
+        }
+    }
+
+    renderTrackHeader(track) {
+        const div = document.createElement('div');
+        div.className = `track-header ${this.selectedTrackId === track.id ? 'selected' : ''}`;
+        // Click handler handles both Desktop selection and Mobile popup opening
+        div.onclick = () => this.openTrackOptions(track.id);
+        
+        div.innerHTML = `
+            <div class="track-info">
+                <div class="track-name" title="${track.name}">${track.name}</div>
+                <div class="track-buttons">
+                    <div class="circle-btn mute ${track.isMuted ? 'active' : ''}" onclick="event.stopPropagation(); app.toggleMute('${track.id}', event)">M</div>
+                    <div class="circle-btn solo" onclick="event.stopPropagation(); app.toast('Solo WIP')">S</div>
+                </div>
+            </div>
+            <div class="slider-row">
+                <input type="range" class="vol-slider" min="-60" max="6" step="0.1" value="${track.volume}" oninput="app.setTrackVolume('${track.id}', this.value)" onclick="event.stopPropagation()">
+            </div>
+            <div class="fade-row">
+                <div class="fade-inp"><span>In</span><input type="number" step="0.1" min="0" value="${track.fadeIn}" onchange="app.setFade('${track.id}', 'in', this.value)" onclick="event.stopPropagation()"></div>
+                <div class="fade-inp"><span>Out</span><input type="number" step="0.1" min="0" value="${track.fadeOut}" onchange="app.setFade('${track.id}', 'out', this.value)" onclick="event.stopPropagation()"></div>
+            </div>
+        `;
+        this.trackHeadersEl.appendChild(div);
+    }
+
+    renderTrackLane(track) {
+        const lane = document.createElement('div'); lane.className = 'track-lane';
+        const clip = document.createElement('div'); clip.className = `clip ${this.selectedTrackId === track.id ? 'selected' : ''}`;
+        clip.style.left = (track.startTime * this.zoom) + 'px'; clip.style.width = (track.duration * this.zoom) + 'px';
+        const lbl = document.createElement('div'); lbl.className = 'clip-label'; lbl.innerText = track.name; clip.appendChild(lbl);
+        const cvs = document.createElement('canvas'); const w = Math.ceil(track.duration * this.zoom); cvs.width = w; cvs.height = 96;
+        this.drawWaveform(cvs, track); clip.appendChild(cvs);
+        const startDrag = (e) => { this.selectTrack(track.id); this.handleDragStart(e, track, clip); };
+        clip.addEventListener('mousedown', startDrag); clip.addEventListener('touchstart', startDrag, {passive: false});
+        lane.appendChild(clip); this.trackLanesEl.appendChild(lane);
+    }
+
+    drawWaveform(ctxOrCanvas, track) {
+        const ctx = ctxOrCanvas.getContext ? ctxOrCanvas.getContext('2d') : ctxOrCanvas;
+        const buf = track.buffer.get(); if(!buf) return;
+        const data = buf.getChannelData(0);
+        const start = Math.floor(track.offset * buf.sampleRate);
+        const total = Math.floor(track.duration * buf.sampleRate);
+        const step = Math.ceil(total / ctx.canvas.width);
+        const amp = ctx.canvas.height / 2;
+        const gr = ctx.createLinearGradient(0,0,0,ctx.canvas.height);
+        if(this.selectedTrackId === track.id) { gr.addColorStop(0, "#D0BCFF"); gr.addColorStop(1, "#9D84D6"); } else { gr.addColorStop(0, "#4F378B"); gr.addColorStop(1, "#381E72"); }
+        ctx.fillStyle = gr; ctx.beginPath();
+        for (let i = 0; i < ctx.canvas.width; i++) {
+            let min = 1.0, max = -1.0;
+            const idx = start + (i * step); if (idx >= data.length) break;
+            for (let j = 0; j < step; j+=5) { if (idx + j >= data.length) break; const v = data[idx + j]; if (v < min) min = v; if (v > max) max = v; }
+            const h = Math.max(1, (max - min) * amp); ctx.fillRect(i, (ctx.canvas.height - h)/2, 1, h);
+        }
+    }
+
+    selectTrack(id) { this.selectedTrackId = id; this.renderAll(); }
+
+    // --- Interactions ---
+    getEventX(e) { return (e.touches && e.touches.length) ? e.touches[0].clientX : e.clientX; }
+    
+    handleDragStart(e, track, el) {
+        e.stopPropagation(); const startState = this.serializeCurrent();
+        const startX = this.getEventX(e); const initLeft = parseFloat(el.style.left||0);
+        const moveHandler = (ev) => {
+            const dx = this.getEventX(ev) - startX; let nl = initLeft + dx;
+            if(this.snapEnabled) nl = Math.round(nl / (this.snapInterval*this.zoom)) * (this.snapInterval*this.zoom);
+            if(nl < 0) nl = 0; el.style.left = nl + 'px';
+        };
+        const upHandler = (ev) => {
+            const dx = this.getEventX(ev) - startX; let nl = initLeft + dx;
+            if(this.snapEnabled) nl = Math.round(nl / (this.snapInterval*this.zoom)) * (this.snapInterval*this.zoom);
+            if(nl < 0) nl = 0; const newTime = nl / this.zoom;
+            if(Math.abs(newTime - track.startTime) > 0.001) {
+                this.history.push(startState); this.redoStack = []; this.updateUndoUI(); track.startTime = newTime; this.triggerAutoSave();
+                if(this.isPlaying) { this.stop(); this.play(); } else this.renderAll();
+            }
+            window.removeEventListener('mousemove', moveHandler); window.removeEventListener('mouseup', upHandler);
+            window.removeEventListener('touchmove', moveHandler); window.removeEventListener('touchend', upHandler);
+        };
+        window.addEventListener('mousemove', moveHandler); window.addEventListener('mouseup', upHandler);
+        window.addEventListener('touchmove', moveHandler, {passive: false}); window.addEventListener('touchend', upHandler);
+    }
+
+    setupTimelineInteractions() {
+        const scrub = (e, fromRect) => {
+            const rect = fromRect || this.scrollWrapper.getBoundingClientRect();
+            const x = this.getEventX(e) - rect.left + this.scrollWrapper.scrollLeft;
+            this.seek(Math.max(0, x / this.zoom));
+        };
+        const handleStart = (e) => {
+            const rect = this.scrollWrapper.getBoundingClientRect(); scrub(e, rect);
+            const onMove = (ev) => scrub(ev, rect);
+            const onEnd = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onEnd); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onEnd); };
+            window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onEnd);
+            window.addEventListener('touchmove', onMove); window.addEventListener('touchend', onEnd);
+        };
+        this.rulerEl.addEventListener('mousedown', handleStart); this.rulerEl.addEventListener('touchstart', handleStart, {passive: false});
+        this.playhead.addEventListener('mousedown', e => {e.stopPropagation(); handleStart(e)}); this.playhead.addEventListener('touchstart', e => {e.stopPropagation(); handleStart(e)}, {passive:false});
+        this.trackLanesEl.addEventListener('mousedown', e => { if(!e.target.closest('.clip')) handleStart(e); });
+        this.scrollWrapper.addEventListener('wheel', e => { if(e.ctrlKey) { e.preventDefault(); const d = Math.sign(e.deltaY)*-1; this.setZoom(Math.max(10,Math.min(300,this.zoom+d*10))); document.getElementById('zoom-slider').value = this.zoom; } });
+    }
+
+    // --- Audio ---
+    setFade(id, type, val) { const t = this.tracks.find(x => x.id === id); if(t) { this.saveState(); if(type==='in') t.fadeIn=parseFloat(val); else t.fadeOut=parseFloat(val); this.triggerAutoSave(); } }
+    setTrackVolume(id, val) { const t = this.tracks.find(x => x.id === id); if(t) { t.volume=parseFloat(val); if(t.player && !t.isMuted) t.player.volume.rampTo(t.volume, 0.1); this.triggerAutoSave(); } }
+    toggleMute(id) { const t = this.tracks.find(x => x.id === id); if(t) { t.isMuted=!t.isMuted; if(t.player) t.player.mute=t.isMuted; this.renderAll(); this.triggerAutoSave(); } }
+    setMasterVolume(val) { const db = parseFloat(val); this.masterVol.volume.rampTo(db, 0.1); document.getElementById('master-vol-text').innerText=(db>0?'+':'')+db.toFixed(1)+' dB'; }
+    
+    toggleSnap() { 
+        this.snapEnabled = !this.snapEnabled; 
+        const btn = document.getElementById('btn-snap');
+        const btnMobile = document.getElementById('btn-mobile-snap');
+        if(this.snapEnabled) {
+            btn.classList.add('active');
+            if(btnMobile) btnMobile.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+            if(btnMobile) btnMobile.classList.remove('active');
+        }
+        this.renderAll(); 
+    }
+    togglePlay() { if(this.isPlaying) this.pause(); else this.play(); }
+    play() {
+        if(!this.initialized) Tone.start();
+        this.isPlaying = true; document.getElementById('play-btn').innerHTML = '❚❚';
+        const now = Tone.now(); const offset = this.playbackCursor;
+        this.tracks.forEach(t => {
+            if(t.player) { t.player.stop(); t.player.dispose(); }
+            if(t.startTime + t.duration < offset) return;
+            const p = new Tone.Player(t.buffer).connect(this.masterVol);
+            t.player = p; p.volume.value = t.isMuted ? -Infinity : t.volume; p.fadeIn = t.fadeIn; p.fadeOut = t.fadeOut;
+            if(t.startTime >= offset) p.start(now + (t.startTime - offset), t.offset, t.duration);
+            else p.start(now, t.offset + (offset - t.startTime), t.duration - (offset - t.startTime));
+        });
+        this.startTime = now - offset;
+    }
+    pause() { this.isPlaying = false; document.getElementById('play-btn').innerHTML = '▶'; this.playbackCursor = Tone.now() - this.startTime; this.tracks.forEach(t => { if(t.player) { t.player.stop(); t.player.dispose(); t.player = null; } }); }
+    stop() { this.pause(); this.playbackCursor = 0; this.updatePlayheadUI(); }
+    seek(time) { const p = this.isPlaying; if(p) this.pause(); this.playbackCursor = time; this.updatePlayheadUI(); if(p) this.play(); }
+    seekToStart() { this.seek(0); }
+    
+    splitSelectedTrack() {
+        if(!this.selectedTrackId) return this.toast('Select track');
+        const idx = this.tracks.findIndex(t => t.id === this.selectedTrackId);
+        const t = this.tracks[idx];
+        if(this.playbackCursor > t.startTime && this.playbackCursor < t.startTime + t.duration) {
+            this.saveState(); const rel = this.playbackCursor - t.startTime;
+            const right = this.createTrack(t.name, t.buffer, this.playbackCursor, t.offset+rel, t.duration-rel);
+            right._rawBuffer = t._rawBuffer; right.volume = t.volume; right.isMuted = t.isMuted; right.fadeOut = t.fadeOut;
+            t.duration = rel; t.fadeOut = 0;
+            this.renderAll(); this.triggerAutoSave();
+        } else this.toast('Move cursor over clip');
+    }
+    deleteSelected() { if(this.selectedTrackId) this.deleteTrack(this.selectedTrackId); else this.toast('Select track'); }
+    deleteTrack(id) {
+        this.saveState(); const idx = this.tracks.findIndex(x => x.id === id);
+        if(idx > -1) { if(this.tracks[idx].player) this.tracks[idx].player.dispose(); this.tracks.splice(idx, 1); this.selectedTrackId = null; this.renderAll(); this.triggerAutoSave(); }
+    }
+    
+    animate() {
+        if(this.isPlaying) {
+            this.playbackCursor = Tone.now() - this.startTime;
+            const px = this.playbackCursor * this.zoom;
+            if(px > this.scrollWrapper.scrollLeft + this.scrollWrapper.clientWidth - 50) this.scrollWrapper.scrollLeft = px - 50;
+        }
+        this.updatePlayheadUI(); this.drawMeters(); requestAnimationFrame(this.animate);
+    }
+    drawMeters() {
+        const draw = (cvs) => {
+            if(!cvs || cvs.offsetParent === null) return; // Skip if hidden
+            const ctx = cvs.getContext('2d'); const w = cvs.width = cvs.clientWidth; const h = cvs.height = cvs.clientHeight;
+            const db = this.meter.getValue(); let lvl = (db + 60) / 60; if(lvl < 0) lvl = 0; if(lvl > 1) lvl = 1;
+            ctx.fillStyle = '#111'; ctx.fillRect(0,0,w,h);
+            const gr = ctx.createLinearGradient(0,0,w,0); gr.addColorStop(0, '#B8F397'); gr.addColorStop(0.8, '#D0BCFF'); gr.addColorStop(1, '#F2B8B5');
+            ctx.fillStyle = gr; ctx.fillRect(0, 0, w * lvl, h);
+        };
+        draw(document.getElementById('desktop-master-meter'));
+        draw(document.getElementById('mobile-master-meter'));
+    }
+    updatePlayheadUI() {
+        document.getElementById('time-display').innerText = this.formatTime(this.playbackCursor);
+        this.playhead.style.transform = `translateX(${this.playbackCursor * this.zoom}px)`;
+    }
+    formatTime(sec, short) { const m = Math.floor(sec/60); const s = Math.floor(sec%60); const ms = Math.floor((sec%1)*100); return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}:${ms.toString().padStart(2,'0')}`; }
+    
+    setZoom(val) {
+        const nz = parseInt(val); const oz = this.zoom;
+        const px = this.playbackCursor * oz; const screen = px - this.scrollWrapper.scrollLeft;
+        this.zoom = nz; this.renderAll();
+        this.scrollWrapper.scrollLeft = (this.playbackCursor * nz) - screen;
+    }
+    
+    setupDragDrop() {
+        window.addEventListener('dragover', e => e.preventDefault());
+        window.addEventListener('drop', e => { e.preventDefault(); if(e.dataTransfer.files.length) this.addFiles(e.dataTransfer.files); });
+        document.getElementById('file-input').addEventListener('change', e => this.addFiles(e.target.files));
+        document.addEventListener('keydown', e => {
+            if(e.target.tagName === 'INPUT') return;
+            if(e.code === 'Space') { e.preventDefault(); this.togglePlay(); }
+            if(e.ctrlKey && e.code === 'KeyB') { e.preventDefault(); this.splitSelectedTrack(); }
+            if(e.code === 'Delete' || e.code === 'Backspace') { e.preventDefault(); this.deleteSelected(); }
+            if(e.ctrlKey && e.code === 'KeyZ') { e.preventDefault(); this.undo(); }
+            if(e.ctrlKey && e.code === 'KeyY') { e.preventDefault(); this.redo(); }
+            if(e.code === 'ArrowLeft') { e.preventDefault(); this.nudgePlayhead(-1); }
+            if(e.code === 'ArrowRight') { e.preventDefault(); this.nudgePlayhead(1); }
+        });
+    }
+    saveState() { const s = this.tracks.map(t => ({id:t.id, name:t.name, startTime:t.startTime, offset:t.offset, duration:t.duration, isMuted:t.isMuted, volume:t.volume, fadeIn:t.fadeIn, fadeOut:t.fadeOut, _bufferId:t._bufferId})); this.history.push(JSON.stringify(s)); this.redoStack=[]; this.updateUndoUI(); }
+    restoreState(json) { const s = JSON.parse(json); const bc = {}; this.tracks.forEach(t => bc[t._bufferId]=t.buffer); const rc = {}; this.tracks.forEach(t => rc[t._bufferId]=t._rawBuffer); this.tracks = s.map(x => ({...x, buffer:bc[x._bufferId], _rawBuffer:rc[x._bufferId], player:null})); this.renderAll(); this.updateUndoUI(); }
+    undo() { if(this.history.length) { this.redoStack.push(this.serializeCurrent()); this.restoreState(this.history.pop()); } }
+    redo() { if(this.redoStack.length) { this.history.push(this.serializeCurrent()); this.restoreState(this.redoStack.pop()); } }
+    serializeCurrent() { return JSON.stringify(this.tracks.map(t => ({id:t.id, name:t.name, startTime:t.startTime, offset:t.offset, duration:t.duration, isMuted:t.isMuted, volume:t.volume, fadeIn:t.fadeIn, fadeOut:t.fadeOut, _bufferId:t._bufferId}))); }
+    updateUndoUI() { document.getElementById('btn-undo').disabled = !this.history.length; document.getElementById('btn-redo').disabled = !this.redoStack.length; }
+    toast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2000); }
+}
+
+const app = new DAW();
+</script>
+</body>
+</html>
