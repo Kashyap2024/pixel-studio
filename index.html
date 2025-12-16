@@ -282,7 +282,7 @@
             content: ''; position: absolute; top: 0; bottom: 0; left: -15px; width: 30px; background: transparent;
         }
 
-        /* Transport Footer */
+        /* Transport Footer - MOBILE FIXES APPLIED */
         #transport {
             height: var(--transport-height);
             background: var(--surface-variant);
@@ -744,31 +744,23 @@ class DAW {
     }
 
     openTrackOptions(trackId) {
-        // Only trigger on mobile width or if requested
-        if(window.innerWidth > 768) {
-            this.selectTrack(trackId);
-            return;
-        }
+        if(window.innerWidth > 768) { this.selectTrack(trackId); return; }
         
         this.selectTrack(trackId);
         const track = this.tracks.find(t => t.id === trackId);
         if(!track) return;
 
         const modal = document.getElementById('track-options-modal');
-        // Update the SCROLLING title
         const titleEl = document.getElementById('modal-track-name');
         titleEl.innerText = track.name;
-        // Trigger reflow to restart animation
         titleEl.style.animation = 'none';
         titleEl.offsetHeight; /* trigger reflow */
         titleEl.style.animation = 'marquee 10s linear infinite';
         
-        // Bind Volume
         const volSlider = document.getElementById('modal-track-vol');
         volSlider.value = track.volume;
         volSlider.oninput = (e) => this.setTrackVolume(trackId, e.target.value);
         
-        // Bind Mute/Solo
         const btnMute = document.getElementById('modal-btn-mute');
         btnMute.className = `btn ${track.isMuted ? 'active' : ''}`;
         btnMute.style.background = track.isMuted ? 'var(--accent-danger)' : '';
@@ -781,7 +773,6 @@ class DAW {
         const btnSolo = document.getElementById('modal-btn-solo');
         btnSolo.onclick = () => this.toast("Solo WIP");
 
-        // Bind Fades
         const fadeIn = document.getElementById('modal-fade-in');
         const fadeOut = document.getElementById('modal-fade-out');
         fadeIn.value = track.fadeIn;
@@ -909,7 +900,6 @@ class DAW {
         const div = document.createElement('div');
         div.className = `track-header ${this.selectedTrackId === track.id ? 'selected' : ''}`;
         div.id = 'header-' + track.id;
-        // Click handler handles both Desktop selection and Mobile popup opening
         div.onclick = () => this.openTrackOptions(track.id);
         
         div.innerHTML = `
@@ -970,7 +960,6 @@ class DAW {
         else { gr.addColorStop(0, "#4F378B"); gr.addColorStop(1, "#381E72"); }
         ctx.fillStyle = gr; ctx.beginPath();
         
-        // Fade samples
         const fadeInSamples = track.fadeIn * buf.sampleRate;
         const fadeOutSamples = track.fadeOut * buf.sampleRate;
         
@@ -978,15 +967,10 @@ class DAW {
             let min = 1.0, max = -1.0;
             const idx = start + (i * step); 
             if (idx >= data.length) break;
-            
             for (let j = 0; j < step; j+=5) { 
                 if (idx + j >= data.length) break; 
-                const v = data[idx + j]; 
-                if (v < min) min = v; 
-                if (v > max) max = v; 
+                const v = data[idx + j]; if (v < min) min = v; if (v > max) max = v; 
             }
-            
-            // Fades logic
             const sampleInClip = idx - start;
             let gain = 1.0;
             if (sampleInClip < fadeInSamples) gain = sampleInClip / fadeInSamples;
@@ -997,7 +981,6 @@ class DAW {
             ctx.fillRect(i, y, 1, h);
         }
         
-        // Visual Lines
         ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.beginPath();
         if(track.fadeIn > 0) {
             const pxIn = (track.fadeIn / track.duration) * ctx.canvas.width;
@@ -1013,7 +996,6 @@ class DAW {
 
     selectTrack(id) { this.selectedTrackId = id; this.renderAll(); }
 
-    // --- Interactions ---
     getEventX(e) { 
         if (e.changedTouches && e.changedTouches.length > 0) return e.changedTouches[0].clientX;
         if (e.touches && e.touches.length > 0) return e.touches[0].clientX;
@@ -1021,12 +1003,13 @@ class DAW {
     }
     
     handleDragStart(e, track, el) {
-        e.stopPropagation(); const startState = this.serializeCurrent();
-        const startX = this.getEventX(e); const initLeft = parseFloat(el.style.left||0);
+        e.stopPropagation(); 
+        const startState = this.serializeCurrent();
+        const startX = this.getEventX(e); 
+        const initLeft = parseFloat(el.style.left||0);
+        
         const moveHandler = (ev) => {
-            // FIX: Prevent scrolling on mobile while dragging clip
             if(ev.cancelable) ev.preventDefault();
-            
             const dx = this.getEventX(ev) - startX; let nl = initLeft + dx;
             if(this.snapEnabled) nl = Math.round(nl / (this.snapInterval*this.zoom)) * (this.snapInterval*this.zoom);
             if(nl < 0) nl = 0; el.style.left = nl + 'px';
@@ -1037,7 +1020,9 @@ class DAW {
             if(nl < 0) nl = 0; const newTime = nl / this.zoom;
             if(Math.abs(newTime - track.startTime) > 0.001) {
                 this.history.push(startState); this.redoStack = []; this.updateUndoUI(); track.startTime = newTime; this.triggerAutoSave();
-                if(this.isPlaying) { this.stop(); this.play(); } else this.renderAll();
+                if(this.isPlaying) { this.stop(); this.play(); } 
+                // DO NOT re-render all here to keep DOM element alive on mobile
+                // Logic already handled by manual move
             }
             window.removeEventListener('mousemove', moveHandler); window.removeEventListener('mouseup', upHandler);
             window.removeEventListener('touchmove', moveHandler); window.removeEventListener('touchend', upHandler);
@@ -1053,7 +1038,7 @@ class DAW {
             this.seek(Math.max(0, x / this.zoom));
         };
         const handleStart = (e) => {
-            if (e.touches && e.touches.length > 1) return; // Ignore pinch
+            if (e.touches && e.touches.length > 1) return;
             const rect = this.scrollWrapper.getBoundingClientRect(); scrub(e, rect);
             const onMove = (ev) => scrub(ev, rect);
             const onEnd = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onEnd); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onEnd); };
@@ -1065,7 +1050,6 @@ class DAW {
         this.trackLanesEl.addEventListener('mousedown', e => { if(!e.target.closest('.clip')) handleStart(e); });
         this.scrollWrapper.addEventListener('wheel', e => { if(e.ctrlKey) { e.preventDefault(); const d = Math.sign(e.deltaY)*-1; this.setZoom(Math.max(10,Math.min(300,this.zoom+d*10))); document.getElementById('zoom-slider').value = this.zoom; } });
 
-        // Pinch Zoom
         let initialPinchDist = null; let initialZoom = null;
         this.scrollWrapper.addEventListener('touchstart', (e) => {
             if (e.touches.length === 2) {
@@ -1085,7 +1069,6 @@ class DAW {
         this.scrollWrapper.addEventListener('touchend', e => { if(e.touches.length < 2) initialPinchDist = null; });
     }
 
-    // --- Audio ---
     setFade(id, type, val) { const t = this.tracks.find(x => x.id === id); if(t) { this.saveState(); if(type==='in') t.fadeIn=parseFloat(val); else t.fadeOut=parseFloat(val); this.triggerAutoSave(); } }
     setTrackVolume(id, val) { const t = this.tracks.find(x => x.id === id); if(t) { t.volume=parseFloat(val); if(t.player && !t.isMuted) t.player.volume.rampTo(t.volume, 0.1); this.triggerAutoSave(); } }
     toggleMute(id) { const t = this.tracks.find(x => x.id === id); if(t) { t.isMuted=!t.isMuted; if(t.player) t.player.mute=t.isMuted; this.renderAll(); this.triggerAutoSave(); } }
@@ -1171,6 +1154,46 @@ class DAW {
     }
     formatTime(sec, short) { const m = Math.floor(sec/60); const s = Math.floor(sec%60); const ms = Math.floor((sec%1)*100); return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}:${ms.toString().padStart(2,'0')}`; }
     
+    async exportMix() {
+        if (this.tracks.length === 0) return;
+        const spinner = document.getElementById('exp-spinner');
+        if(spinner) spinner.style.display = 'block';
+        const totalDur = this.tracks.reduce((max, t) => Math.max(max, t.startTime + t.duration), 0);
+        if (totalDur === 0) { if(spinner) spinner.style.display = 'none'; return this.toast("Nothing to export"); }
+        const buffer = await Tone.Offline(({ transport }) => {
+            this.tracks.forEach(track => {
+                if (track.isMuted) return;
+                const p = new Tone.Player(track.buffer).toDestination();
+                p.volume.value = track.volume; p.fadeIn = track.fadeIn; p.fadeOut = track.fadeOut;
+                p.start(track.startTime, track.offset, track.duration);
+            });
+        }, totalDur + 1);
+        const wav = this.bufferToWave(buffer, buffer.length);
+        const blob = new Blob([wav], {type: 'audio/wav'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `${this.currentProjectName}.wav`; a.click();
+        if(spinner) spinner.style.display = 'none';
+        this.toast('Export Complete');
+    }
+
+    bufferToWave(abuffer, len) {
+        const numOfChan = abuffer.numberOfChannels, length = len * numOfChan * 2 + 44, buffer = new ArrayBuffer(length), view = new DataView(buffer), channels = [], sampleRate = abuffer.sampleRate;
+        let pos = 0, offset = 0;
+        const setUint16 = (data) => { view.setUint16(pos, data, true); pos += 2; };
+        const setUint32 = (data) => { view.setUint32(pos, data, true); pos += 4; };
+        setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157); setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan); setUint32(sampleRate); setUint32(sampleRate * 2 * numOfChan); setUint16(numOfChan * 2); setUint16(16); setUint32(0x61746164); setUint32(length - pos - 4);
+        for(let i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
+        while(pos < length) {
+            for(let i = 0; i < numOfChan; i++) {
+                let sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0;
+                view.setInt16(pos, sample, true); pos += 2;
+            }
+            offset++;
+        }
+        return buffer;
+    }
+
     setZoom(val) {
         const newZoom = parseInt(val);
         const oldZoom = this.zoom;
